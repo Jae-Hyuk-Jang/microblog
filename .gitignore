@@ -149,3 +149,7 @@ desktop.ini
 
 # JetBrains IDEs (.vscode is intentionally tracked for shared editor config)
 .idea/
+
+# SQLite runtime database files
+*.sqlite3
+*.sqlite3-*
