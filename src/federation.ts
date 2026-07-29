@@ -1,5 +1,5 @@
 import { createFederation } from "@fedify/fedify";
-import { Person } from "@fedify/vocab";
+import { Endpoints, Person } from "@fedify/vocab";
 import { getLogger } from "@logtape/logtape";
 import { InProcessMessageQueue, MemoryKvStore } from "@fedify/fedify";
 
@@ -16,7 +16,11 @@ federation.setActorDispatcher("/users/{identifier}", async (ctx, identifier) => 
     id: ctx.getActorUri(identifier),
     preferredUsername: identifier,
     name: identifier,
+    inbox: ctx.getInboxUri(identifier),
+    endpoints: new Endpoints({ sharedInbox: ctx.getInboxUri() }),
   });
 });
+
+federation.setInboxListeners("/users/{identifier}/inbox", "/inbox");
 
 export default federation;
