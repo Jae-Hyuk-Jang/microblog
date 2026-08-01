@@ -91,11 +91,27 @@ app.get("/users/:username", async (c) => {
     .get(c.req.param("username"));
   if (user == null) return c.notFound();
 
+  // biome-ignore lint/style/noNonNullAssertion: 언제나 하나의 레코드를 반환
+  const { followers } = db
+    .prepare<unknown[], { followers: number }>(
+      `
+      SELECT count(*) AS followers
+      FROM follows
+      JOIN actors ON follows.following_id = actors.id
+      WHERE actors.user_id = ?
+      `,
+    )
+    .get(user.id)!;
   const url = new URL(c.req.url);
   const handle = `@${user.username}@${url.host}`;
   return c.html(
     <Layout>
-      <Profile name={user.name ?? user.username} handle={handle} />
+      <Profile
+        name={user.name ?? user.username}
+        username={user.username}
+        handle={handle}
+        followers={followers}
+      />
     </Layout>,
   );
 });
