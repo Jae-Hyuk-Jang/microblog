@@ -1,5 +1,5 @@
 import { createFederation, exportJwk, generateCryptoKeyPair, importJwk } from "@fedify/fedify";
-import { Accept, Endpoints, Follow, Person, getActorHandle } from "@fedify/vocab";
+import { Accept, Endpoints, Follow, Person, Undo, getActorHandle } from "@fedify/vocab";
 import { getLogger } from "@logtape/logtape";
 import { InProcessMessageQueue, MemoryKvStore } from "@fedify/fedify";
 import type { Actor, Key, User } from "./schema.ts";
@@ -152,6 +152,24 @@ federation
       object: follow,
     });
     await ctx.sendActivity(object, follower, accept);
+  })
+  .on(Undo, async (ctx, undo) => {
+    const object = await undo.getObject();
+    if (!(object instanceof Follow)) return;
+    if (undo.actorId == null || object.objectId == null) return;
+    const parsed = ctx.parseUri(object.objectId);
+    if (parsed == null || parsed.type !== "actor") return;
+    db.prepare(
+      `
+      DELETE FROM follows
+      WHERE following_id = (
+        SELECT actors.id
+        FROM actors
+        JOIN users ON actors.user_id = users.id
+        WHERE users.username = ?
+      ) AND follower_id = (SELECT id FROM actors WHERE uri = ?)
+      `,
+    ).run(parsed.identifier, undo.actorId.href);
   });
 
 export default federation;
