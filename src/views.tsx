@@ -3,7 +3,9 @@ import type { Actor } from "./schema.ts";
 
 export interface ProfileProps {
   name: string;
+  username: string;
   handle: string;
+  followers: number;
 }
 
 export const Layout: FC = (props) => (
@@ -39,11 +41,18 @@ export const SetupForm: FC = () => (
   </>
 );
 
-export const Profile: FC<ProfileProps> = ({ name, handle }) => (
+export const Profile: FC<ProfileProps> = ({ name, username, handle, followers }) => (
   <>
     <hgroup>
-      <h1>{name}</h1>
-      <p style="user-select: all;">{handle}</p>
+      <h1>
+        <a href={`/users/${username}`}>{name}</a>
+      </h1>
+      <p>
+        <span style="user-select: all;">{handle}</span> &middot;{" "}
+        <a href={`/users/${username}/followers`}>
+          {followers === 1 ? "1 follower" : `${followers} followers`}
+        </a>
+      </p>
     </hgroup>
   </>
 );
