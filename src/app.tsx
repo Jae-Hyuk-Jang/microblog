@@ -6,7 +6,7 @@ import { FollowerList, Home, Layout, PostPage, SetupForm, Profile } from "./view
 import db from "./db.ts";
 import type { Actor, Post, User } from "./schema.ts";
 import { stringifyEntities } from "stringify-entities";
-import { Note } from "@fedify/vocab";
+import { Create, Note } from "@fedify/vocab";
 
 const app = new Hono();
 app.use(federation(fedi, () => undefined));
@@ -177,7 +177,7 @@ app.post("/users/:username/posts", async (c) => {
     return c.text("Content is required", 400);
   }
   const ctx = fedi.createContext(c.req.raw, undefined);
-  const url: string | null = db.transaction(() => {
+  const post: Post | null = db.transaction(() => {
     const post = db
       .prepare<unknown[], Post>(
         `
@@ -193,10 +193,23 @@ app.post("/users/:username/posts", async (c) => {
       id: post.id.toString(),
     }).href;
     db.prepare("UPDATE posts SET uri = ?, url = ? WHERE id = ?").run(url, url, post.id);
-    return url;
+    return post;
   })();
-  if (url == null) return c.text("Failed to create post", 500);
-  return c.redirect(url);
+  if (post == null) return c.text("Failed to create post", 500);
+  const noteArgs = { identifier: username, id: post.id.toString() };
+  const note = await ctx.getObject(Note, noteArgs);
+  await ctx.sendActivity(
+    { identifier: username },
+    "followers",
+    new Create({
+      id: new URL("#activity", note?.id ?? undefined),
+      object: note,
+      actors: note?.attributionIds,
+      tos: note?.toIds,
+      ccs: note?.ccIds,
+    }),
+  );
+  return c.redirect(ctx.getObjectUri(Note, noteArgs).href);
 });
 
 app.get("/users/:username/posts/:id", (c) => {
