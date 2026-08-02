@@ -2,7 +2,7 @@
 import { Hono } from "hono";
 import { federation } from "@fedify/hono";
 import fedi from "./federation.ts";
-import { FollowerList, Home, Layout, SetupForm, Profile } from "./views.tsx";
+import { FollowerList, Home, Layout, PostPage, SetupForm, Profile } from "./views.tsx";
 import db from "./db.ts";
 import type { Actor, Post, User } from "./schema.ts";
 import { stringifyEntities } from "stringify-entities";
@@ -197,6 +197,44 @@ app.post("/users/:username/posts", async (c) => {
   })();
   if (url == null) return c.text("Failed to create post", 500);
   return c.redirect(url);
+});
+
+app.get("/users/:username/posts/:id", (c) => {
+  const post = db
+    .prepare<unknown[], Post & Actor & User>(
+      `
+      SELECT users.*, actors.*, posts.*
+      FROM posts
+      JOIN actors ON actors.id = posts.actor_id
+      JOIN users ON users.id = actors.user_id
+      WHERE users.username = ? AND posts.id = ?
+      `,
+    )
+    .get(c.req.param("username"), c.req.param("id"));
+
+  if (post == null) return c.notFound();
+
+  // biome-ignore lint/style/noNonNullAssertion: 언제나 하나의 레코드를 반환
+  const { followers } = db
+    .prepare<unknown[], { followers: number }>(
+      `
+        SELECT count(*) AS followers
+        FROM follows
+        WHERE follows.following_id = ?
+        `,
+    )
+    .get(post.actor_id)!;
+  return c.html(
+    <Layout>
+      <PostPage
+        name={post.name ?? post.username}
+        username={post.username}
+        handle={post.handle}
+        followers={followers}
+        post={post}
+      />
+    </Layout>,
+  );
 });
 
 export default app;
