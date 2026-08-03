@@ -197,20 +197,9 @@ federation
     ).run(parsed.identifier, undo.actorId.href);
   })
   .on(Accept, async (ctx, accept) => {
-    let follow: unknown;
-    try {
-      follow = await accept.getObject();
-    } catch (error) {
-      logger.debug("Failed to fetch the object of the Accept activity: {error}", { error });
-      return;
-    }
-    if (!(follow instanceof Follow)) return;
+    if (ctx.recipient == null) return;
     const following = await accept.getActor();
     if (!isActor(following)) return;
-    const follower = follow.actorId;
-    if (follower == null) return;
-    const parsed = ctx.parseUri(follower);
-    if (parsed == null || parsed.type !== "actor") return;
     const followingId = (await persistActor(following))?.id;
     if (followingId == null) return;
     db.prepare(
@@ -226,7 +215,7 @@ federation
         )
       )
       `,
-    ).run(followingId, parsed.identifier);
+    ).run(followingId, ctx.recipient);
   });
 
 federation
